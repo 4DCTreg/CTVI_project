@@ -30,8 +30,7 @@ if strcmp(RefVI_type,'Galligas')
     landmarks_path = 'H:/CTVI/LandMarks/SD_01_v1/';
     subject_num = 25;
     num_phase = 5;
-
-        CTVI_path = 'H:/CTVI/Results/CTVI_results/SD_01/';
+    CTVI_path = 'H:/CTVI/Results/CTVI_results/SD_01/';
     
 else
     if strcmp(RefVI_type,'Xenon')

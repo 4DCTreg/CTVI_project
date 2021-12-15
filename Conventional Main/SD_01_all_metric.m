@@ -5,15 +5,15 @@ clear;
 
 
 % addpath(genpath('./3D_SIFT_pkg/'))
-addpath(genpath('../../VAMPIRE_FullDatabase_MHA/'));
-addpath(genpath('./scr/'));
-addpath(genpath('G:/SIFT3D/SIFT3D 1.4.5/'));
-addpath(genpath('./MatlabUtilityPack'));
+addpath(genpath('../../CTVI_data/VAMPIRE_FullDatabase_MHA/'));
+addpath(genpath('../scr/'));
+% addpath(genpath('G:/SIFT3D/SIFT3D 1.4.5/'));
+addpath(genpath('../MatlabUtilityPack'));
 ex_to_avg_path = 'H:/CTVI/Results/SD_01_ex_to_avg_sup_multi/';
 in_to_ex_path = 'H:/CTVI/Results/SD_01_in_to_ex_iso_multi_sup/';
 
-addpath(genpath('./pTVreg-master/mutils/My/'));
-addpath(genpath('./pTVreg-master/ptv'));
+addpath(genpath('../pTVreg-master/mutils/My/'));
+addpath(genpath('../pTVreg-master/ptv'));
 
 RefVI_type = 'Galligas';
 % RefVI_type = 'DTPA-SPECT';
@@ -24,9 +24,9 @@ RefVI_type = 'Galligas';
 VI_metric = 'Average';
 
 if strcmp(RefVI_type,'Galligas')
-    file_path = 'H:/VAMPIRE_FullDatabase_MHA/Study01_Galligas-PET/';
-    landmarks_path = 'H:/CTVI/LandMarks/SD_01_v1/';
-    CTVI_path = 'H:/CTVI/Results/CTVI_results/SD_01/';
+    file_path = 'D:/CTVI_data/VAMPIRE_FullDatabase_MHA/Study01_Galligas-PET/';
+%     landmarks_path = 'H:/CTVI/LandMarks/SD_01_v1/';
+    CTVI_path = 'D:/CTVI/Results/CTVI_results/SD_01/';
     subject_num = 25;
     num_phase = 5;
 else
@@ -91,9 +91,9 @@ for num = 12 :subject_num
     init_size = size(vol_in_orig);
     
     % load landmarks
-    pts_struct = DIR_get_landmarks_for_the_case(num, landmarks_path);
-    pts_in = pts_struct.extreme.in;
-    pts_ex = pts_struct.extreme.ex;
+%     pts_struct = DIR_get_landmarks_for_the_case(num, landmarks_path);
+%     pts_in = pts_struct.extreme.in;
+%     pts_ex = pts_struct.extreme.ex;
     
     units = info_mask.PixelDimensions;
     % Automatic landmarks extraction
@@ -105,19 +105,18 @@ for num = 12 :subject_num
     resize = 1;
     fast_lcc =  1;
     spc_orig = units;
-    [pt_errs_phys_or, TRE_phys_or, TREstd_phys_or] = DIR_or(pts_in, pts_ex, spc_orig, []);
-    TREs_or(num) = TRE_phys_or;
+%     [pt_errs_phys_or, TRE_phys_or, TREstd_phys_or] = DIR_or(pts_in, pts_ex, spc_orig, []);
+%     TREs_or(num) = TRE_phys_or;
     if resize
         bszv = size(vol_in_orig);
         spc_tmp = [1, 1, 1];
         vol_ex = volresize(vol_ex_orig, round(bszv .* units .* spc_tmp), 1);
         vol_in = volresize(vol_in_orig, round(bszv .* units .* spc_tmp), 1);
-
+        
         avg_img = volresize(avg_img_orig, round(bszv .* units .* spc_tmp), 1);
         avg_mask = imresize3(avg_mask_orig, round(bszv .* units .* spc_tmp), 'nearest');
         spc = [1,1,1] ./ spc_tmp;
     end
-    
     
     d = [10, 10, 5];
     crop_v_GT = crop_mask(GT_mask,size(GT_mask),d);
@@ -248,18 +247,17 @@ for num = 12 :subject_num
         vent_img_mask = vent_img_mask+0.01;
         
         GT_img = GT_img + 0.01;
-        
-        
+         
         % median filter
         vent_img_avg_filter = medfilt3(vent_img_mask,[3,3,3]);
         GT_img_filter = medfilt3(GT_img,[3,3,3]);
         index_slice = 275;
-            figure
-            show_overlay_sagittal_debug(avg_img_orig, vent_img_avg_filter, info_GT, GT_mask, index_slice,'hot')
-            figure
-            show_overlay_sagittal(avg_img_orig, GT_img_filter, info_GT, GT_mask, index_slice,'hot')
+        figure
+        show_overlay_sagittal_debug(avg_img_orig, vent_img_avg_filter, info_GT, GT_mask, index_slice,'hot')
+        figure
+        show_overlay_sagittal(avg_img_orig, GT_img_filter, info_GT, GT_mask, index_slice,'hot')
         
-                vent_img_avg_filter = vent_img_mask;
+        vent_img_avg_filter = vent_img_mask;
         GT_img_filter = GT_img;
         %     GT_img_filter = GT_img;
         
@@ -336,10 +334,10 @@ for num = 12 :subject_num
         GT_img_filter = medfilt3(GT_img,[3,3,3]);
         %     GT_img_filter = GT_img;
         index_slice = 275;
-            figure
-            show_overlay_sagittal_debug(avg_img_orig, vent_img_avg_filter, info_GT, GT_mask, index_slice,'hot')
-            figure
-            show_overlay_sagittal(avg_img_orig, GT_img_filter, info_GT, GT_mask, index_slice,'hot')
+        figure
+        show_overlay_sagittal_debug(avg_img_orig, vent_img_avg_filter, info_GT, GT_mask, index_slice,'hot')
+        figure
+        show_overlay_sagittal(avg_img_orig, GT_img_filter, info_GT, GT_mask, index_slice,'hot')
         
         %     vent_img_avg_filter(find(vent_img_avg_filter==0)) = 0.001;
         %     GT_img_filter(find(GT_img_filter ==0)) = 0.001;
