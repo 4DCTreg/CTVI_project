@@ -70,10 +70,10 @@ for num = 1:subject_num
     
     spc_ct = info.PixelDimensions;
     spc_ref = info_mask_GT.PixelDimensions;
-    
-    
+   
+
     spc_tmp =  [0.5, 0.5, 0.5];
-    
+
     GT_sz = size(GT_img);
     img_ref = volresize(GT_img, round(GT_sz .* spc_ref .* spc_tmp), 1);
     img_ref_mask =  round(volresize(GT_mask, round(GT_sz .* spc_ref .* spc_tmp), 1));
@@ -82,29 +82,27 @@ for num = 1:subject_num
     avg_mask = round(volresize(avg_mask_orig, round(bszv .* spc_ct .* spc_tmp), 1));
     
     if strcmp(RefVI_type,'Galligas')
-        [optimizer,metric] = imregconfig('monomodal');
-        tform = imregtform(avg_mask, img_ref_mask, 'rigid', optimizer, metric);
-        Rmoving = imref3d(size(avg_mask));
-        Rfixed = imref3d(size(img_ref_mask));
-        moved_avg_img = imwarp(avg_img,Rmoving,tform,'OutputView',Rfixed, 'SmoothEdges', true);
-        moved_avg_mask = imwarp(avg_mask,Rmoving,tform,'OutputView',Rfixed, 'SmoothEdges', true);
+    [optimizer,metric] = imregconfig('monomodal');
+    tform = imregtform(avg_mask, img_ref_mask, 'rigid', optimizer, metric);
+    Rmoving = imref3d(size(avg_mask));
+    Rfixed = imref3d(size(img_ref_mask));
+    moved_avg_img = imwarp(avg_img,Rmoving,tform,'OutputView',Rfixed, 'SmoothEdges', true);
+    moved_avg_mask = imwarp(avg_mask,Rmoving,tform,'OutputView',Rfixed, 'SmoothEdges', true);
     else
         moved_avg_img = avg_img;
         moved_avg_mask = avg_mask;
     end
     vol_cur_rigid_all = [];
-    d = [5, 5, 5];
+    d = [10, 10, 5];
     crop_v = crop_mask(img_ref_mask,size(img_ref_mask),d);
     for i_idx = 1:5
         CT_cur = vol_ct(:,:,:,i_idx);
         bszv = size(CT_cur);
         spc_tmp = [0.5, 0.5, 0.5];
         vol_cur = volresize(CT_cur, round(bszv .* spc_ct .* spc_tmp), 1);
-        if strcmp(RefVI_type,'Galligas')
-            vol_cur_rigid = imwarp(vol_cur,Rmoving,tform,'OutputView',Rfixed, 'SmoothEdges', true);
-        else
-            vol_cur_rigid = vol_cur;
-        end
+         if strcmp(RefVI_type,'Galligas')
+        vol_cur_rigid = imwarp(vol_cur,Rmoving,tform,'OutputView',Rfixed, 'SmoothEdges', true);
+         end
         vol_cur_rigid = crop_data(vol_cur_rigid,crop_v);
         vol_cur_rigid = img_thr(vol_cur_rigid, -1024, 100, 1);
         vol_cur_rigid_all = cat(4, vol_cur_rigid_all, vol_cur_rigid);
@@ -119,27 +117,16 @@ for num = 1:subject_num
     CT_avg_img = crop_data(moved_avg_img, crop_v);
     CT_avg_img = img_thr(CT_avg_img, -1024, 100, 1);
     
-    if strcmp(RefVI_type,'Galligas')
-        gt_img_name = [save_path,'Sub_',num2str(num),'_GT_img','.nii'];
-        gt_mask_name = [save_path,'Sub_',num2str(num),'_GT_mask','.nii'];
-        CT_avg_img_name = [save_path,'Sub_',num2str(num),'_CT_avg_img','.nii'];
-        CT_avg_mask_name = [save_path,'Sub_',num2str(num),'_CT_avg_mask','.nii'];
-        CT_1_img = [save_path,'Sub_',num2str(num),'_CT_img_1','.nii'];
-        CT_2_img = [save_path,'Sub_',num2str(num),'_CT_img_2','.nii'];
-        CT_3_img = [save_path,'Sub_',num2str(num),'_CT_img_3','.nii'];
-        CT_4_img = [save_path,'Sub_',num2str(num),'_CT_img_4','.nii'];
-        CT_5_img = [save_path,'Sub_',num2str(num),'_CT_img_5','.nii'];
-    else
-        gt_img_name = [save_path,'Sub_',num2str(num+25),'_GT_img','.nii'];
-        gt_mask_name = [save_path,'Sub_',num2str(num+25),'_GT_mask','.nii'];
-        CT_avg_img_name = [save_path,'Sub_',num2str(num+25),'_CT_avg_img','.nii'];
-        CT_avg_mask_name = [save_path,'Sub_',num2str(num+25),'_CT_avg_mask','.nii'];
-        CT_1_img = [save_path,'Sub_',num2str(num+25),'_CT_img_1','.nii'];
-        CT_2_img = [save_path,'Sub_',num2str(num+25),'_CT_img_2','.nii'];
-        CT_3_img = [save_path,'Sub_',num2str(num+25),'_CT_img_3','.nii'];
-        CT_4_img = [save_path,'Sub_',num2str(num+25),'_CT_img_4','.nii'];
-        CT_5_img = [save_path,'Sub_',num2str(num+25),'_CT_img_5','.nii'];
-    end
+    
+    gt_img_name = [save_path,'Sub_',num2str(num+25),'_GT_img','.nii'];
+    gt_mask_name = [save_path,'Sub_',num2str(num+25),'_GT_mask','.nii'];
+    CT_avg_img_name = [save_path,'Sub_',num2str(num+25),'_CT_avg_img','.nii'];
+    CT_avg_mask_name = [save_path,'Sub_',num2str(num+25),'_CT_avg_mask','.nii'];
+    CT_1_img = [save_path,'Sub_',num2str(num+25),'_CT_img_1','.nii'];
+    CT_2_img = [save_path,'Sub_',num2str(num+25),'_CT_img_2','.nii'];
+    CT_3_img = [save_path,'Sub_',num2str(num+25),'_CT_img_3','.nii'];
+    CT_4_img = [save_path,'Sub_',num2str(num+25),'_CT_img_4','.nii'];
+    CT_5_img = [save_path,'Sub_',num2str(num+25),'_CT_img_5','.nii'];
     
     gt_img_nii = make_nii(single(gt_img));
     gt_mask_nii = make_nii(single(gt_mask));
@@ -161,5 +148,5 @@ for num = 1:subject_num
     save_nii(CT_4_img_nii,CT_4_img);
     save_nii(CT_5_img_nii,CT_5_img);
     
-    
+
 end
