@@ -56,7 +56,7 @@ class Generator_Unet(nn.Module):
         return block
 
     def __init__(self, in_channel, out_channel):
-        super(UNet, self).__init__()
+        super(Generator_Unet, self).__init__()
         # Encode
         self.conv_encode1 = self.contracting_block(in_channels=in_channel, out_channels=16)
         self.conv_maxpool1 = torch.nn.MaxPool3d(kernel_size=2)
@@ -92,7 +92,8 @@ class Generator_Unet(nn.Module):
             bypass = F.pad(bypass, (-c, -c, -c, -c))
         return torch.cat((upsampled, bypass), 1)
 
-    def forward(self, x):
+    def forward(self, ct1, ct2, ct3, ct4, ct5):
+        x = torch.cat([ct1, ct2, ct3, ct4, ct5], dim=1)
         # Encode
         encode_block1 = self.conv_encode1(x)
         encode_pool1 = self.conv_maxpool1(encode_block1)

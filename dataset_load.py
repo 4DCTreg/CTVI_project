@@ -5,11 +5,64 @@ import numpy as np
 
 import utils
 
+
+def vol_gen_VAMPIRE_val(vol_names, bidir=False, batch_size=1, prob_same=0, no_warp=False, **kwargs):
+    """
+    Generator for scan-to-scan registration.
+
+    Parameters:
+        vol_names: List of volume files to load.
+        bidir: Yield input image as output for bidirectional models. Default is False.
+        batch_size: Batch size. Default is 1.
+        prob_same: Induced probability that source and target inputs are the same. Default is 0.
+        no_warp: Excludes null warp in output list if set to True (for affine training). Default if False.
+        kwargs: Forwarded to the internal volgen generator.
+    """
+    zeros = None
+
+    gen_paired = volgen_paried_pls_val_hf(vol_names, **kwargs)
+
+    while True:
+        scan1, scan2 = next(gen_paired)
+        scan1_liver_seg = scan1[1]
+        scan2_liver_seg = scan2[1]
+        scan1_vessel_seg = scan1[2]
+        scan2_vessel_seg = scan2[2]
+        scan1_vessel_exp_seg = scan1[3]
+        scan2_vessel_exp_seg = scan2[3]
+        scan1_edge_seg = scan1[4]
+        scan2_edge_seg = scan2[4]
+
+        scan1 = scan1[0]
+        scan2 = scan2[0]
+
+
+        # some induced chance of making source and target equal
+        if prob_same > 0 and np.random.rand() < prob_same:
+            if np.random.rand() > 0.5:
+                scan1 = scan2
+            else:
+                scan2 = scan1
+
+        # cache zeros
+        if not no_warp and zeros is None:
+            shape = scan1.shape[1:-1]
+            zeros = np.zeros((batch_size, *shape, len(shape)))
+        # invols = [src_vol, trg_vol, src_seg]
+        # outvols = [trg_vol, zeros, trg_seg]
+        invols = [scan1, scan2, scan1_liver_seg, scan2_liver_seg, scan1_vessel_seg, scan2_vessel_seg,
+                  scan1_vessel_exp_seg, scan2_vessel_exp_seg, scan1_edge_seg, scan2_edge_seg]
+
+        outvols = [scan2_liver_seg, scan2_vessel_seg, scan1_vessel_seg]
+        yield (invols, outvols)
+
+
+
 def volgen_VAMPIRE(
         vol_names,
         n_paired=6,
         batch_size=1,
-        patch_size=[128, 128, 128],
+        patch_size=[80, 64, 80],
         np_var='vol',
         pad_shape=None,
         resize_factor=1,

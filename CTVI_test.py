@@ -101,8 +101,8 @@ class _3DGAN(object):
             sio.savemat(os.path.join(self.config.img_dir, '{:06d}_{:02d}.mat'.format(self.step, i)), mdict)
 
     def save_model(self):
-        torch.save({key: val.cpu() for key, val in self.G.state_dict().items()}, os.path.join(self.config.model_dir, 'G_iter_{:06d}.pth'.format(self.epoch)))
-        torch.save({key: val.cpu() for key, val in self.D.state_dict().items()}, os.path.join(self.config.model_dir, 'D_iter_{:06d}.pth'.format(self.epoch)))
+        torch.save({key: val.cpu() for key, val in self.G.state_dict().items()}, os.path.join(self.config.model_dir, 'G_iter_{:06d}.pth'.format(self.step)))
+        torch.save({key: val.cpu() for key, val in self.D.state_dict().items()}, os.path.join(self.config.model_dir, 'D_iter_{:06d}.pth'.format(self.step)))
 
     def train(self):
         self.writer = SummaryWriter(self.config.log_dir)
@@ -112,9 +112,9 @@ class _3DGAN(object):
         self.D_lr_scheduler = torch.optim.lr_scheduler.StepLR(self.opt_D, step_size=self.config.step_size, gamma=self.config.gamma)
 
         initial_epoch = 0
-        epochs = 100
+        epochs = 200
         # start training
-        for self.epoch in range(initial_epoch, epochs):
+        for epoch in range(initial_epoch, epochs):
 
             epoch_total_loss_D = []
             epoch_total_loss_G = []
@@ -164,12 +164,12 @@ class _3DGAN(object):
                 epoch_total_loss_D.append(self.loss_D.data.cpu().numpy().item())
                 epoch_total_loss_G.append(self.loss_G.data.cpu().numpy().item())
 
-            print('epoch: {:04d}, loss_D: {:.6f}, loss_G: {:.6f}'.format(self.epoch+1, np.mean(epoch_total_loss_G), np.mean(epoch_total_loss_G)))
+            print('epoch: {:06d}, loss_D: {:.6f}, loss_G: {:.6f}'.format(epoch, np.mean(epoch_total_loss_G), np.mean(epoch_total_loss_G)))
 
-            if self.epoch % 10 == 0:
+            if self.step % 100 == 0:
                 self.save_log()
 
-            if self.epoch % 10 == 0:
+            if self.step % 1000 == 0:
                 #self.save_img()
                 self.save_model()
 
@@ -177,18 +177,69 @@ class _3DGAN(object):
         self.writer.close()
 
 
+    def test(self):
+
+        self.opt_G = torch.optim.Adam(self.G.parameters(), lr=self.config.G_lr, betas=(0.5, 0.999))
+        self.opt_D = torch.optim.Adam(self.D.parameters(), lr=self.config.D_lr, betas=(0.5, 0.999))
+        self.G_lr_scheduler = torch.optim.lr_scheduler.StepLR(self.opt_G, step_size=self.config.step_size, gamma=self.config.gamma)
+        self.D_lr_scheduler = torch.optim.lr_scheduler.StepLR(self.opt_D, step_size=self.config.step_size, gamma=self.config.gamma)
+
+
+        for step in range(self.start_step, 1 + self.config.max_iter):
+            self.step = step
+            self.G_lr_scheduler.step()
+            self.D_lr_scheduler.step()
+
+            #self.real_X = next(self.dataset.gen(True))
+            inputs, real_X = next(self.dataset)
+            inputs = [torch.from_numpy(d).to('cuda').float().permute(0, 4, 1, 2, 3) for d in inputs]
+            self.real_X = [torch.from_numpy(d).to('cuda').float().permute(0, 4, 1, 2, 3) for d in real_X]
+
+            # self.noise = torch.randn(self.config.nchw[0], 200)
+            # if len(self.gpu):
+            #     with torch.cuda.device(self.gpu[0]):
+            #         self.real_X = self.real_X.cuda()
+            #         self.noise  = self.noise.cuda()
+
+            self.fake_X = self.G(*inputs)
+
+            # # update D
+            # self.D_real = self.D(self.real_X[0])
+            # self.D_fake = self.D(self.fake_X.detach())
+            # self.D_loss = {
+            #     'adv_real': self.adv_criterion(self.D_real, torch.ones_like(self.D_real)),
+            #     'adv_fake': self.adv_criterion(self.D_fake, torch.zeros_like(self.D_fake)),
+            # }
+            # self.loss_D = sum(self.D_loss.values())
+            #
+            # self.opt_D.zero_grad()
+            # self.loss_D.backward()
+            # self.opt_D.step()
+            #
+            # # update G
+            # self.D_fake = self.D(self.fake_X)
+            # self.G_loss = {
+            #     'adv_fake': self.adv_criterion(self.D_fake, torch.ones_like(self.D_fake))
+            # }
+            # self.loss_G = sum(self.G_loss.values())
+            # self.opt_G.zero_grad()
+            # self.loss_G.backward()
+            # self.opt_G.step()
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--attribute', type=str, help='Specify category for training.')
     parser.add_argument('-g', '--gpu', default=[0], nargs='+', type=int, help='Specify GPU ids.')
-    parser.add_argument('-r', '--restore', default=None, action='store', type=int, help='Specify checkpoint id to restore.')
-    parser.add_argument('-m', '--mode', default='train', type=str, choices=['train', 'test'])
-    parser.add_argument('--img-list', default='VAMPIRE_train_all.txt', help='line-seperated list of training files')
+    parser.add_argument('-r', '--restore', default=[100], action='store', type=int, help='Specify checkpoint id to restore.')
+    parser.add_argument('-m', '--mode', default='test', type=str, choices=['train', 'test'])
+    parser.add_argument('--img-list', default='VAMPIRE_test_all.txt', help='line-seperated list of training files')
     args = parser.parse_args()
     print(args)
     train_files = utils.read_file_list(args.img_list)
 
     model = _3DGAN(args, train_files)
-    if args.mode == 'train':
-        model.train()
+    if args.mode == 'test':
+        model.test()
 

@@ -51,7 +51,7 @@ class Config:
             os.makedirs(img_dir)
         return img_dir
 
-    nchw = [32,64,64,64]
+    nchw = [32, 64, 64, 64]
 
     G_lr = 2.5e-3
 
@@ -65,7 +65,7 @@ class Config:
 
     num_workers = 0
 
-    max_iter = 20000
+    max_iter = 500
 
 config = Config()
 
