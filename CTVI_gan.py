@@ -32,8 +32,12 @@ class _3DGAN(object):
 
         self.adv_criterion = torch.nn.BCELoss()
 
+
         self.set_mode_and_gpu()
         self.restore_from_file()
+
+    def MSE(self, y_true, y_pred):
+        return torch.mean((y_true - y_pred) ** 2)
 
     def set_mode_and_gpu(self):
         if self.mode == 'train':
@@ -118,6 +122,7 @@ class _3DGAN(object):
 
             epoch_total_loss_D = []
             epoch_total_loss_G = []
+            epoch_total_loss_Recon = []
 
 
             for step in range(self.start_step, 1 + self.config.max_iter):
@@ -153,8 +158,10 @@ class _3DGAN(object):
 
                 # update G
                 self.D_fake = self.D(self.fake_X)
+
                 self.G_loss = {
-                    'adv_fake': self.adv_criterion(self.D_fake, torch.ones_like(self.D_fake))
+                    'adv_fake': self.adv_criterion(self.D_fake, torch.ones_like(self.D_fake)),
+                    'recon_loos': self.MSE(self.fake_X, self.real_X[0])*3,
                 }
                 self.loss_G = sum(self.G_loss.values())
                 self.opt_G.zero_grad()
@@ -163,8 +170,9 @@ class _3DGAN(object):
 
                 epoch_total_loss_D.append(self.loss_D.data.cpu().numpy().item())
                 epoch_total_loss_G.append(self.loss_G.data.cpu().numpy().item())
+                epoch_total_loss_Recon.append(list(self.G_loss.values())[1].data.cpu().numpy().item())
 
-            print('epoch: {:04d}, loss_D: {:.6f}, loss_G: {:.6f}'.format(self.epoch+1, np.mean(epoch_total_loss_G), np.mean(epoch_total_loss_G)))
+            print('epoch: {:04d}, loss_D: {:.6f}, loss_G: {:.6f}, loss_recon: {:.6f}'.format(self.epoch+1, np.mean(epoch_total_loss_D), np.mean(epoch_total_loss_G),  np.mean(epoch_total_loss_Recon)))
 
             if self.epoch % 10 == 0:
                 self.save_log()

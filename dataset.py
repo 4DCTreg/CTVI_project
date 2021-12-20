@@ -65,7 +65,7 @@ class Config:
 
     num_workers = 0
 
-    max_iter = 500
+    max_iter = 300
 
 config = Config()
 

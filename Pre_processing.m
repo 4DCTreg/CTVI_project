@@ -3,14 +3,14 @@
 
 clear;
 addpath(genpath('../CTVI_data/VAMPIRE_FullDatabase_MHA/'));
-addpath(genpath('./scr/'));
-addpath(genpath('./pTVreg-master/mutils/My/'));
-addpath(genpath('./pTVreg-master/ptv'));
-addpath(genpath('./Utilize/'));
+addpath(genpath('scr/'));
+addpath(genpath('pTVreg-master/mutils/My/'));
+addpath(genpath('pTVreg-master/ptv'));
+addpath(genpath('Utilize/'));
 
-% RefVI_type = 'Galligas';
+RefVI_type = 'Galligas';
 % RefVI_type = 'DTPA-SPECT';
-RefVI_type = 'DTPA-SPECT';
+% RefVI_type = 'DTPA-SPECT';
 
 if strcmp(RefVI_type,'Galligas')
     file_path = 'D:/CTVI_data/VAMPIRE_FullDatabase_MHA/Study01_Galligas-PET/';
@@ -93,8 +93,57 @@ for num = 1:subject_num
         moved_avg_mask = avg_mask;
     end
     vol_cur_rigid_all = [];
-    d = [5, 5, 5];
+    d = [2, 2, 2];
     crop_v = crop_mask(img_ref_mask,size(img_ref_mask),d);
+    size_crop_mask = [crop_v(1,2)-crop_v(1,1)+1,crop_v(2,2)-crop_v(2,1)+1, crop_v(3,2)-crop_v(3,1)+1];
+    
+    % crop for U-net
+    r_or = size_crop_mask(1);
+    c_or = size_crop_mask(2);
+    s_or = size_crop_mask(3);
+    
+    r_new = ceil(r_or/16)*16;
+    c_new = ceil(c_or/16)*16;
+    s_new = ceil(s_or/16)*16;
+    res_r = r_new - r_or;
+    res_c = c_new - c_or;
+    res_s = s_new - s_or;
+    
+    if res_r==0
+        r_unet1 = crop_v(1,1);
+        r_unet2 = crop_v(1,2);
+    else
+        r_unet1 = crop_v(1,1) - floor(res_r/2);
+        r_unet2 = crop_v(1,2) + ceil(res_r/2);
+    end
+    
+    if res_c==0
+        c_unet1 = crop_v(2,1);
+        c_unet2 = crop_v(2,2);
+    else
+        c_unet1 = crop_v(2,1) - floor(res_c/2);
+        c_unet2 = crop_v(2,2) + ceil(res_c/2);
+    end
+    
+    if res_s==0
+        s_unet1 = crop_v(3,1);
+        s_unet2 = crop_v(3,2);
+    else
+        s_unet1 = crop_v(3,1) - floor(res_s/2)-4;
+        if s_unet1<1
+            s_unet1= 1;
+            s_unet2 = s_unet1 + s_new - 1;
+            if s_unet2 > size(img_ref_mask,3)
+                s_new_small = floor(s_or/16)*16;
+                s_unet2 = s_unet1 + s_new_small - 1;
+            end
+                
+        else
+            s_unet2 = crop_v(3,2) + ceil(res_s/2)-4;
+        end
+    end
+    
+    crop_unet = [r_unet1,r_unet2;c_unet1,c_unet2;s_unet1,s_unet2];
     for i_idx = 1:5
         CT_cur = vol_ct(:,:,:,i_idx);
         bszv = size(CT_cur);
@@ -105,18 +154,27 @@ for num = 1:subject_num
         else
             vol_cur_rigid = vol_cur;
         end
-        vol_cur_rigid = crop_data(vol_cur_rigid,crop_v);
+        %         vol_cur_rigid = crop_data(vol_cur_rigid,crop_v);
+        vol_cur_rigid = crop_data(vol_cur_rigid,crop_unet);
         vol_cur_rigid = img_thr(vol_cur_rigid, -1024, 100, 1);
         vol_cur_rigid_all = cat(4, vol_cur_rigid_all, vol_cur_rigid);
         spc = [1,1,1] ./ spc_tmp;
     end
     
-    gt_img = crop_data(img_ref,crop_v);
-    gt_mask = crop_data(img_ref_mask, crop_v);
+    
+    
+    %     gt_img = crop_data(img_ref,crop_v);
+    gt_img = crop_data(img_ref,crop_unet);
+    
+    %     gt_mask = crop_data(img_ref_mask, crop_v);
+    gt_mask = crop_data(img_ref_mask, crop_unet);
+    
     gt_img = img_thr(gt_img,prctile(gt_img(gt_mask==1),1),prctile(gt_img(gt_mask==1),99),1);
     
-    CT_avg_mask = crop_data(round(moved_avg_mask),crop_v);
-    CT_avg_img = crop_data(moved_avg_img, crop_v);
+    CT_avg_mask = crop_data(round(moved_avg_mask),crop_unet);
+    %     CT_avg_mask = crop_data(CT_avg_mask,crop_unet);
+    CT_avg_img = crop_data(moved_avg_img, crop_unet);
+    %     CT_avg_img = crop_data(CT_avg_img, crop_unet);
     CT_avg_img = img_thr(CT_avg_img, -1024, 100, 1);
     
     if strcmp(RefVI_type,'Galligas')

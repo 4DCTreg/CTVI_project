@@ -2,7 +2,7 @@
 # Created Time: 2018/05/11 11:50:23
 # Author: Taihong Xiao <xiaotaihong@126.com>
 
-from dataset_load import volgen_VAMPIRE
+from dataset_load import volgen_VAMPIRE, volgen_VAMPIRE_val
 from nets import Generator, Discriminator, Generator_Unet
 from dataset import config
 import os, argparse
@@ -12,10 +12,11 @@ import scipy.io as sio
 from tensorboardX import SummaryWriter
 from itertools import chain
 import utils
+import re
 
 
 class _3DGAN(object):
-    def __init__(self, args, train_files, config=config):
+    def __init__(self, args, test_files, config=config):
         self.args = args
         self.attribute = args.attribute
         self.gpu = args.gpu
@@ -25,7 +26,9 @@ class _3DGAN(object):
         # init dataset and networks
         self.config = config
         #self.dataset = ShapeNet(self.attribute)
-        self.dataset = volgen_VAMPIRE(train_files)
+        self.dataset = volgen_VAMPIRE(test_files)
+        self.val_dataset = volgen_VAMPIRE_val(test_files)
+        self.test_files = test_files
         self.G = Generator_Unet(5, 1)
         #self.G = Generator()
         self.D = Discriminator()
@@ -183,15 +186,18 @@ class _3DGAN(object):
         self.opt_D = torch.optim.Adam(self.D.parameters(), lr=self.config.D_lr, betas=(0.5, 0.999))
         self.G_lr_scheduler = torch.optim.lr_scheduler.StepLR(self.opt_G, step_size=self.config.step_size, gamma=self.config.gamma)
         self.D_lr_scheduler = torch.optim.lr_scheduler.StepLR(self.opt_D, step_size=self.config.step_size, gamma=self.config.gamma)
+        save_path = 'D:/CTVI_data/Gan_results/'
+        # fixed, fixed_affine = utils.load_volfile('D:/CTVI_data/Step1_pre_processing/Sub_1_GT_img.nii', add_batch_axis=True, ret_affine=True)
+        for n_index in range(7):
+            cur_name = self.test_files[n_index*6+5]
+            rs = re.sub('^D:/CTVI_data/Step1_pre_processing/', '', cur_name)
+            cur_save_name = save_path + rs
 
-
-        for step in range(self.start_step, 1 + self.config.max_iter):
-            self.step = step
             self.G_lr_scheduler.step()
             self.D_lr_scheduler.step()
 
             #self.real_X = next(self.dataset.gen(True))
-            inputs, real_X = next(self.dataset)
+            inputs, real_X = next(self.val_dataset)
             inputs = [torch.from_numpy(d).to('cuda').float().permute(0, 4, 1, 2, 3) for d in inputs]
             self.real_X = [torch.from_numpy(d).to('cuda').float().permute(0, 4, 1, 2, 3) for d in real_X]
 
@@ -200,8 +206,13 @@ class _3DGAN(object):
             #     with torch.cuda.device(self.gpu[0]):
             #         self.real_X = self.real_X.cuda()
             #         self.noise  = self.noise.cuda()
+            with torch.no_grad():
+                self.fake_X = self.G(*inputs)
 
-            self.fake_X = self.G(*inputs)
+            img_g = self.fake_X
+            img_g = img_g.detach().cpu().numpy().squeeze()
+
+            utils.save_volfile_VAMPIRE(img_g, cur_save_name)
 
             # # update D
             # self.D_real = self.D(self.real_X[0])
@@ -232,14 +243,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--attribute', type=str, help='Specify category for training.')
     parser.add_argument('-g', '--gpu', default=[0], nargs='+', type=int, help='Specify GPU ids.')
-    parser.add_argument('-r', '--restore', default=[100], action='store', type=int, help='Specify checkpoint id to restore.')
+    parser.add_argument('-r', '--restore', default='000090', action='store', type=int, help='Specify checkpoint id to restore.')
     parser.add_argument('-m', '--mode', default='test', type=str, choices=['train', 'test'])
     parser.add_argument('--img-list', default='VAMPIRE_test_all.txt', help='line-seperated list of training files')
     args = parser.parse_args()
     print(args)
-    train_files = utils.read_file_list(args.img_list)
+    test_files = utils.read_file_list(args.img_list)
 
-    model = _3DGAN(args, train_files)
+    model = _3DGAN(args, test_files)
     if args.mode == 'test':
         model.test()
 

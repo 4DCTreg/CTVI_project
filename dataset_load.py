@@ -6,61 +6,57 @@ import numpy as np
 import utils
 
 
-def vol_gen_VAMPIRE_val(vol_names, bidir=False, batch_size=1, prob_same=0, no_warp=False, **kwargs):
-    """
-    Generator for scan-to-scan registration.
+def volgen_VAMPIRE_val(
+        vol_names,
+        return_segs=True,
+        np_var='vol',
+        pad_shape=None,
+        resize_factor=1,
+        add_feat_axis=True
+):
 
-    Parameters:
-        vol_names: List of volume files to load.
-        bidir: Yield input image as output for bidirectional models. Default is False.
-        batch_size: Batch size. Default is 1.
-        prob_same: Induced probability that source and target inputs are the same. Default is 0.
-        no_warp: Excludes null warp in output list if set to True (for affine training). Default if False.
-        kwargs: Forwarded to the internal volgen generator.
-    """
-    zeros = None
+    # convert glob path to filenames
+    if isinstance(vol_names, str):
+        if os.path.isdir(vol_names):
+            vol_names = os.path.join(vol_names, '*')
+        vol_names = glob.glob(vol_names)
+    index = 0
+    while index < 7:
 
-    gen_paired = volgen_paried_pls_val_hf(vol_names, **kwargs)
+        index_ct1 = index * 6
+        index_ct2 = index * 6 + 1
+        index_ct3 = index * 6 + 2
+        index_ct4 = index * 6 + 3
+        index_ct5 = index * 6 + 4
+        index_gt = index * 6 + 5
 
-    while True:
-        scan1, scan2 = next(gen_paired)
-        scan1_liver_seg = scan1[1]
-        scan2_liver_seg = scan2[1]
-        scan1_vessel_seg = scan1[2]
-        scan2_vessel_seg = scan2[2]
-        scan1_vessel_exp_seg = scan1[3]
-        scan2_vessel_exp_seg = scan2[3]
-        scan1_edge_seg = scan1[4]
-        scan2_edge_seg = scan2[4]
+        # load volumes and concatenate
+        load_params = dict(np_var=np_var, add_batch_axis=True, add_feat_axis=add_feat_axis, pad_shape=pad_shape,
+                           resize_factor=resize_factor)
+        imgs_ct1 = utils.load_volfile(vol_names[index_ct1], **load_params)
+        imgs_ct2 = utils.load_volfile(vol_names[index_ct2], **load_params)
+        imgs_ct3 = utils.load_volfile(vol_names[index_ct3], **load_params)
+        imgs_ct4 = utils.load_volfile(vol_names[index_ct4], **load_params)
+        imgs_ct5 = utils.load_volfile(vol_names[index_ct5], **load_params)
+        imgs_gt = utils.load_volfile(vol_names[index_gt], **load_params)
 
-        scan1 = scan1[0]
-        scan2 = scan2[0]
+        vols_input = [imgs_ct1]
+        vols_input.append(imgs_ct2)
+        vols_input.append(imgs_ct3)
+        vols_input.append(imgs_ct4)
+        vols_input.append(imgs_ct5)
+        vols_gt = [imgs_gt]
 
-
-        # some induced chance of making source and target equal
-        if prob_same > 0 and np.random.rand() < prob_same:
-            if np.random.rand() > 0.5:
-                scan1 = scan2
-            else:
-                scan2 = scan1
-
-        # cache zeros
-        if not no_warp and zeros is None:
-            shape = scan1.shape[1:-1]
-            zeros = np.zeros((batch_size, *shape, len(shape)))
-        # invols = [src_vol, trg_vol, src_seg]
-        # outvols = [trg_vol, zeros, trg_seg]
-        invols = [scan1, scan2, scan1_liver_seg, scan2_liver_seg, scan1_vessel_seg, scan2_vessel_seg,
-                  scan1_vessel_exp_seg, scan2_vessel_exp_seg, scan1_edge_seg, scan2_edge_seg]
-
-        outvols = [scan2_liver_seg, scan2_vessel_seg, scan1_vessel_seg]
-        yield (invols, outvols)
+        yield (vols_input, vols_gt)
+        index = index+1
+        if index == 7:
+            index = 0
 
 
 
 def volgen_VAMPIRE(
         vol_names,
-        n_paired=6,
+        n_paired=39,
         batch_size=1,
         patch_size=[80, 64, 80],
         np_var='vol',
